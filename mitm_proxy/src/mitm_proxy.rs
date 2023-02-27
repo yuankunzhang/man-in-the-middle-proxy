@@ -8,8 +8,8 @@ use crate::{
 
 use eframe::{
     egui::{
-        self, popup, ComboBox, FontData, FontDefinitions, FontFamily, Grid, Layout, RichText,
-        ScrollArea, Style, TextEdit, TextStyle::*, TopBottomPanel, Visuals,
+        self, ComboBox, FontData, FontDefinitions, FontFamily, Grid, Layout, RichText, ScrollArea,
+        Style, TextEdit, TextStyle::*, TopBottomPanel, Visuals,
     },
     emath::Align2,
     epaint::{Color32, FontId},
@@ -95,6 +95,7 @@ pub struct MitmProxy {
     config: MitmProxyConfig,
     state: MitmProxyState,
     proxy: Option<ManagedProxy>,
+    pub settings_window_open: bool,
 }
 
 impl MitmProxy {
@@ -108,6 +109,7 @@ impl MitmProxy {
             config,
             state,
             proxy: None,
+            settings_window_open: false,
         }
     }
 
@@ -164,20 +166,20 @@ impl MitmProxy {
         cc.egui_ctx.set_style(style);
     }
 
-    pub fn table_ui(&mut self,frame: &mut eframe::Frame, ui: &mut egui::Ui) {
+    pub fn table_ui(&mut self, frame: &mut eframe::Frame, ui: &mut egui::Ui) {
         let text_height = match self.config.row_height {
             Some(h) => h,
             _ => egui::TextStyle::Button.resolve(ui.style()).size + PADDING,
         };
 
         let table = TableBuilder::new(ui)
-            .auto_shrink([false;2])
+            .auto_shrink([false; 2])
             .stick_to_bottom(true)
             .striped(self.config.striped)
             .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
-            .column(Column::exact( match self.state.selected_request.is_some() {
+            .column(Column::exact(match self.state.selected_request.is_some() {
                 true => (frame.info().window_info.size.x - 320.) / 2. - 220.,
-                false => frame.info().window_info.size.x - 320. - 55.
+                false => frame.info().window_info.size.x - 320. - 55.,
             }))
             .column(Column::exact(50.))
             .column(Column::exact(100.))
@@ -255,7 +257,7 @@ impl MitmProxy {
     }
 
     pub fn render_right_panel(&mut self, ui: &mut egui::Ui, i: usize) {
-        if self.requests.len() <= 0 && i > self.requests.len() - 1{
+        if self.requests.len() <= 0 && i > self.requests.len() - 1 {
             return;
         }
         Grid::new("controls").show(ui, |ui| {
@@ -289,7 +291,12 @@ impl MitmProxy {
             });
     }
 
-    pub fn render_columns(&mut self,frame: &mut eframe::Frame,  ctx: &egui::Context, ui: &mut egui::Ui) {
+    pub fn render_columns(
+        &mut self,
+        frame: &mut eframe::Frame,
+        ctx: &egui::Context,
+        ui: &mut egui::Ui,
+    ) {
         if !self.is_listening() {
             egui::Window::new("Modal Window")
                 .title_bar(false)
@@ -332,7 +339,7 @@ impl MitmProxy {
             ui.columns(2, |columns| {
                 ScrollArea::vertical()
                     .id_source("requests_table")
-                    .auto_shrink([false;2])
+                    .auto_shrink([false; 2])
                     .show(&mut columns[0], |ui| self.table_ui(frame, ui));
 
                 ScrollArea::vertical()
@@ -387,6 +394,7 @@ impl MitmProxy {
                 }
 
                 ui.with_layout(Layout::right_to_left(eframe::emath::Align::Min), |ui| {
+                    let settings_btn = ui.button("⚙️").on_hover_text("Settings");
                     let theme_btn = ui
                         .button(match self.config.dark_mode {
                             true => "🔆",
@@ -394,6 +402,9 @@ impl MitmProxy {
                         })
                         .on_hover_text("Toggle theme");
 
+                    if settings_btn.clicked() {
+                        self.settings_window_open = true;
+                    }
                     if theme_btn.clicked() {
                         self.config.dark_mode = !self.config.dark_mode
                     }
@@ -405,17 +416,21 @@ impl MitmProxy {
 
     pub fn render_bottom_panel(&mut self, ctx: &egui::Context, _frame: &mut Frame) {
         if self.is_listening() {
-                egui::Window::new("bottom_stop")
+            egui::Window::new("bottom_stop")
                 .title_bar(false)
                 .resizable(false)
                 .anchor(Align2::CENTER_BOTTOM, [0.0, -10.0])
                 .default_height(30.0)
-                .show(ctx, |ui|{
-                    ui.horizontal_centered(|ui|{
+                .show(ctx, |ui| {
+                    ui.horizontal_centered(|ui| {
                         ScrollArea::neither().show(ui, |ui| {
                             ui.label("Proxy listening on: ");
-                            ui.label(RichText::new(&self.state.listen_on).color(Color32::DARK_GREEN));
-                            let stop_button = ui.button(RichText::new("⏹").size(FONT_SIZE-3.0)).on_hover_text("Stop");
+                            ui.label(
+                                RichText::new(&self.state.listen_on).color(Color32::DARK_GREEN),
+                            );
+                            let stop_button = ui
+                                .button(RichText::new("⏹").size(FONT_SIZE - 3.0))
+                                .on_hover_text("Stop");
                             if stop_button.clicked() {
                                 self.stop_proxy();
                             }

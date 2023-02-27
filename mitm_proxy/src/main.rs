@@ -31,6 +31,14 @@ impl App for MitmProxy {
         });
 
         self.render_bottom_panel(ctx, frame);
+
+        if self.settings_window_open {
+            egui::Window::new("Settings")
+                .open(&mut self.settings_window_open)
+                .show(ctx, |ui| {
+                    ui.label("settings");
+                });
+        }
     }
 }
 
